@@ -3,35 +3,8 @@ import socket
 import multiprocessing
 import threading
 import argparse
+import re
 import logging as log
-
-
-class Request:
-    def __init__(self, request):
-        self.request = request
-        self.methods = ['GET', 'HEAD']
-
-
-    def evaluate_request(self):
-        # log.debug('request: ', self.request)
-        try:
-            query_string = self.request.split(maxsplit=2)[1]
-        except Exception as ex:
-            log.error(ex)
-            return 400
-
-        # method, urn = self.request.split(maxsplit=2)[:2]
-        # log.debug(f'method: {method}, urn: {urn}')
-
-        log.debug(query_string)
-
-        # if method not in self.methods:
-        #     return 405, method, urn
-        #
-
-
-
-
 
 
 
@@ -86,12 +59,11 @@ class Server:
 
         # client_socket.send('Server got it!\n'.encode(encoding='utf-8'))
         # client_socket.close()
-        request = Request(client_query)
-        request.evaluate_request()
+        method, path, file = self.parse_request(client_query)
+        
         client_socket.close()
         log.debug(f'Client socket {client_addr[1]} has been closed')
-        log.debug('************************************************')
-        return client_query
+        log.debug('----------')
 
 
     def get_request(self, client_socket):
@@ -103,6 +75,23 @@ class Server:
             if len(chunk) < buff:
                 break
         return data.decode(encoding='utf-8')
+    
+    
+    def parse_request(self, request):
+        patt = r'(?P<method>\S*) (?P<dirs>/([^\.\s/]*/)*)(?P<file>\S*\.(txt|html|css||js|jpg|jpeg|png|gif|swf))?/??\S* HTTP'
+        
+        match = re.match(patt, request)
+        
+        if match:
+            log.debug(match.group('method'))
+            log.debug(match.group('dirs'))
+            log.debug(match.group('file'))
+            
+            # path =
+        else:
+            log.debug('*****')
+        
+        return match.group('method'), match.group('path'), match.group('file')
 
 
 
