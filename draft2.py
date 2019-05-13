@@ -1,23 +1,23 @@
-from http import client
-import socket
-import unittest
-
-
-
+# from http import client
+# import socket
+# import unittest
+#
+#
+#
+# # host = "localhost"
 # host = "localhost"
-host = "localhost"
-port = 8888
-
-
-conn = client.HTTPSConnection(host)
-
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((host, port))
-s.sendall(b"\n")
-s.close()
-
-conn.close()
+# port = 8888
+#
+#
+# conn = client.HTTPSConnection(host)
+#
+#
+# s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# s.connect((host, port))
+# s.sendall(b"\n")
+# s.close()
+#
+# conn.close()
 
 
 # conn.request("GET", '/')
@@ -28,3 +28,4 @@ conn.close()
 # print(r.getheaders())
 # print(r.status, r.reason)
 # # server = r.getheader("Server")
+

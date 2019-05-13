@@ -4,7 +4,48 @@ import multiprocessing
 import threading
 import argparse
 import re
+from collections import namedtuple
 import logging as log
+
+
+
+class Request:
+    def __init__(self, request, root):
+        self.request = request
+        self.root = root
+        self.methods = ['GET', 'HEAD']
+        self.code = None
+        self.urn = None
+
+
+    def evaluate_request(self):
+        patt = r'(?P<method>[A-Z]+) (?P<dirs>/(\S+/)*)(?P<file>(\S+\.(txt|html|css||js|jpg|jpeg|png|gif|swf))?)(?P<params>\S*) HTTP'
+        match = re.match(patt, self.request)
+
+        if match:
+            Match = namedtuple('Match', 'method dirs file params')
+            m = Match(match.group('method'), match.group('method'), match.group('method'), match.group('method'))
+            log.debug(f'Request params: {m.method}; {m.dirs}; {m.file}; {m.params}')
+
+            self.code = self.get_code(m)
+
+        else:
+            log.debug('*****')
+        return self.code, self.urn
+
+    def get_code(self, m):
+        if m.method not in self.methods:
+            return 405
+        if '.' in m.dirs:
+            return 404
+
+
+
+        return 200
+
+
+
+
 
 
 
@@ -59,7 +100,11 @@ class Server:
 
         # client_socket.send('Server got it!\n'.encode(encoding='utf-8'))
         # client_socket.close()
-        method, path, file = self.parse_request(client_query)
+
+        request = Request(client_query, self.root)
+        code, message, urn = request.evaluate_request()
+
+        # method, path, file = self._parse_request(client_query)
         
         client_socket.close()
         log.debug(f'Client socket {client_addr[1]} has been closed')
@@ -75,23 +120,9 @@ class Server:
             if len(chunk) < buff:
                 break
         return data.decode(encoding='utf-8')
-    
-    
-    def parse_request(self, request):
-        patt = r'(?P<method>\S*) (?P<dirs>/([^\.\s/]*/)*)(?P<file>\S*\.(txt|html|css||js|jpg|jpeg|png|gif|swf))?/??\S* HTTP'
+
         
-        match = re.match(patt, request)
-        
-        if match:
-            log.debug(match.group('method'))
-            log.debug(match.group('dirs'))
-            log.debug(match.group('file'))
-            
-            # path =
-        else:
-            log.debug('*****')
-        
-        return match.group('method'), match.group('path'), match.group('file')
+
 
 
 
