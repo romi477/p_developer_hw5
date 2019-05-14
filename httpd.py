@@ -4,7 +4,6 @@ import multiprocessing
 import threading
 import argparse
 import re
-from collections import namedtuple
 import logging as log
 
 
@@ -15,25 +14,30 @@ class Response:
         self.root = root
         
         self.methods = ['GET', 'HEAD']
-        self.urn = None
-        self.code = None
+
+    def evaluate_request(self):
+        code, method, urn = self.parse_request()
+        log.debug(f'Cleaned params: {code}; {method}; {urn}')
+
+
+
 
 
     def parse_request(self):
-        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.(txt|html|css||js|jpg|jpeg|png|gif|swf))?)(?P<addition>\S*) HTTP'
+        method = urn = ''
+        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.(txt|html|css|js|jpg|jpeg|png|gif|swf))?)(?P<addition>\S*) HTTP'
         match = re.match(patt, self.request)
 
         if match:
-      
-            query = match.groupdict()
-            log.debug(f'Request params: {query}')
-
-            self.code, self.urn = self.get_code_urn(query)
-            log.debug(f'Normalized params: {self.code}, {self.urn}')
+            query_dict = match.groupdict()
+            log.debug(f'Request params: {query_dict}')
+            method = query_dict['method']
+            code, urn = self.get_code_urn(query_dict)
         else:
-            log.debug('*****')
-            
-        # return self.code, self.urn
+            log.debug('Bad request! No matching!')
+            code = 400
+
+        return code, method, urn
 
 
     def get_code_urn(self, query):
@@ -86,25 +90,24 @@ class Server:
         else:
             self.server_socket.listen(5)
             log.debug(f'Server has been started on <{self.host}: {self.port}>.')
-
-            return self.accept_client()
+            self.accept_client()
 
 
     def accept_client(self):
-        # while True:
-        log.debug('Waiting for client.')
-        client_socket, client_addr = self.server_socket.accept()
-        log.debug(f'New connection: {client_socket}')
-        # try:
-        #     clients_handler = threading.Thread(target=self.client_handler, args=(client_socket, client_addr))
-        # except Exception as ex:
-        #     log.error(ex)
-        #     client_socket.close()
-        # else:
-        #     log.debug(f'New process for {client_addr[1]} has been started')
-        #     clients_handler.start()
+        while True:
+            log.debug('Waiting for client.')
+            client_socket, client_addr = self.server_socket.accept()
+            log.debug(f'New connection: {client_socket}')
+            try:
+                clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
+            except Exception as ex:
+                log.error(ex)
+                client_socket.close()
+            else:
+                log.debug(f'New process for {client_addr[1]} has been started')
+                clients_handler.start()
 
-        return self.clients_handler(client_socket, client_addr)
+        # return self.clients_handler(client_socket, client_addr)
 
 
     def clients_handler(self, client_socket, client_addr):
@@ -117,13 +120,12 @@ class Server:
         # client_socket.close()
 
         request = Response(client_query, self.root)
-        request.parse_request()
+        request.evaluate_request()
 
-        # method, path, file = self._parse_request(client_query)
-        
-        client_socket.close()
-        log.debug(f'Client socket {client_addr[1]} has been closed')
-        log.debug('----------')
+
+        # client_socket.close()
+        # log.debug(f'Client socket {client_addr[1]} has been closed')
+        # log.debug('----------')
 
 
     def get_request(self, client_socket):
