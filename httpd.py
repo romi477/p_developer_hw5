@@ -1,4 +1,4 @@
-import sys
+import os, sys
 import socket
 import multiprocessing
 import threading
@@ -9,39 +9,54 @@ import logging as log
 
 
 
-class Request:
+class Response:
     def __init__(self, request, root):
         self.request = request
         self.root = root
+        
         self.methods = ['GET', 'HEAD']
-        self.code = None
         self.urn = None
+        self.code = None
 
 
-    def evaluate_request(self):
-        patt = r'(?P<method>[A-Z]+) (?P<dirs>/(\S+/)*)(?P<file>(\S+\.(txt|html|css||js|jpg|jpeg|png|gif|swf))?)(?P<params>\S*) HTTP'
+    def parse_request(self):
+        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.(txt|html|css||js|jpg|jpeg|png|gif|swf))?)(?P<addition>\S*) HTTP'
         match = re.match(patt, self.request)
 
         if match:
-            Match = namedtuple('Match', 'method dirs file params')
-            m = Match(match.group('method'), match.group('method'), match.group('method'), match.group('method'))
-            log.debug(f'Request params: {m.method}; {m.dirs}; {m.file}; {m.params}')
+      
+            query = match.groupdict()
+            log.debug(f'Request params: {query}')
 
-            self.code = self.get_code(m)
-
+            self.code, self.urn = self.get_code_urn(query)
+            log.debug(f'Normalized params: {self.code}, {self.urn}')
         else:
             log.debug('*****')
-        return self.code, self.urn
-
-    def get_code(self, m):
-        if m.method not in self.methods:
-            return 405
-        if '.' in m.dirs:
-            return 404
+            
+        # return self.code, self.urn
 
 
+    def get_code_urn(self, query):
 
-        return 200
+        query['file'] = re.sub(r'%\d\d', ' ', query['file'])
+
+        full_path = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html') + query['addition']
+
+        if query['method'] not in self.methods:
+            return 405, full_path
+
+        if query['addition'] and not query['addition'].startswith('?') and '%' not in query['addition']:
+            return 400, full_path
+
+        full_path = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html')
+
+        if '../' in query['dir']:
+            return 403, full_path
+
+        if '.' in query['dir'] or not os.path.exists(full_path):
+            return 404, full_path
+
+        return 200, full_path
 
 
 
@@ -101,8 +116,8 @@ class Server:
         # client_socket.send('Server got it!\n'.encode(encoding='utf-8'))
         # client_socket.close()
 
-        request = Request(client_query, self.root)
-        code, message, urn = request.evaluate_request()
+        request = Response(client_query, self.root)
+        request.parse_request()
 
         # method, path, file = self._parse_request(client_query)
         
