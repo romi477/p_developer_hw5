@@ -5,6 +5,15 @@ import threading
 import argparse
 import re
 import logging as log
+from datetime import datetime
+
+
+BAD_CODES = {
+    400: '400 BAD_REQUEST',
+    403: '403 FORBIDDEN',
+    404: '404 NOT_FOUND',
+    405: '405 METHOD_NOT_ALLOWED',
+}
 
 
 
@@ -15,17 +24,45 @@ class Response:
         
         self.methods = ['GET', 'HEAD']
 
-    def evaluate_request(self):
+    def execute(self):
         code, method, urn = self.parse_request()
         log.debug(f'Cleaned params: {code}; {method}; {urn}')
 
 
+        data = self.generate_response(code, method, urn)
 
-
-
+        return ('\n\n'.join(data)).encode()
+    
+    
+    
+    def generate_response(self, code, method, urn):
+        if code == 200:
+            return [
+                f'HTTP/1.1 {code}',
+                '200 OK',
+                f'Date: {datetime.now()}',
+                'Server: Simple HTTP server',
+                f'Content-Length: {os.path.getsize(urn)}',
+                'Content-Type: text/html',
+                'Connection: close'
+            ]
+            
+            # return [
+            #     f'HTTP/1.1 {code}',
+            #     '200 OK',
+            #     urn
+            # ]
+        
+        return [
+            f'HTTP/1.1 {code}',
+            f'{BAD_CODES.get(code, "500 INTERNAL_ERROR")}',
+            urn
+        ]
+        
+        
     def parse_request(self):
         method = urn = ''
-        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.(txt|html|css|js|jpg|jpeg|png|gif|swf))?)(?P<addition>\S*) HTTP'
+        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.(txt|html|css|js|jpg|jpeg|png|gif|swf))?)(?P<addition>[^\.\s/]*) HTTP'
         match = re.match(patt, self.request)
 
         if match:
@@ -44,7 +81,9 @@ class Response:
 
         query['file'] = re.sub(r'%\d\d', ' ', query['file'])
 
-        full_path = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html') + query['addition']
+        # full_path = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html')
+        
+        full_path = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html')
 
         if query['method'] not in self.methods:
             return 405, full_path
@@ -52,7 +91,6 @@ class Response:
         if query['addition'] and not query['addition'].startswith('?') and '%' not in query['addition']:
             return 400, full_path
 
-        full_path = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html')
 
         if '../' in query['dir']:
             return 403, full_path
@@ -119,11 +157,11 @@ class Server:
         # client_socket.send('Server got it!\n'.encode(encoding='utf-8'))
         # client_socket.close()
 
-        request = Response(client_query, self.root)
-        request.evaluate_request()
+        response = Response(client_query, self.root)
+        data = response.execute()
 
-
-        # client_socket.close()
+        client_socket.send(data)
+        client_socket.close()
         # log.debug(f'Client socket {client_addr[1]} has been closed')
         # log.debug('----------')
 
