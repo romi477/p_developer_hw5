@@ -1,10 +1,11 @@
-import os, sys
-import socket
-import multiprocessing
-import threading
-import argparse
 import re
+import socket
+import os, sys
+import argparse
+import mimetypes
+import threading
 import logging as log
+import multiprocessing
 from datetime import datetime
 
 
@@ -28,37 +29,35 @@ class Response:
         code, method, urn = self.parse_request()
         log.debug(f'Cleaned params: {code}; {method}; {urn}')
 
-
         data = self.generate_response(code, method, urn)
+        
+        return data
 
-        return ('\n\n'.join(data)).encode()
-    
-    
-    
-    def generate_response(self, code, method, urn):
-        if code == 200:
-            return [
-                f'HTTP/1.1 {code}',
-                '200 OK',
-                f'Date: {datetime.now()}',
-                'Server: Simple HTTP server',
-                f'Content-Length: {os.path.getsize(urn)}',
-                'Content-Type: text/html',
-                'Connection: close'
-            ]
-            
-            # return [
-            #     f'HTTP/1.1 {code}',
-            #     '200 OK',
-            #     urn
-            # ]
+    def get_headers(self, code, method, urn):
+        cont_len = os.path.getsize(urn) if os.path.exists(urn) else ''
+        cont_type = mimetypes.guess_type(urn)[0] if os.path.exists(urn) else ''
         
-        return [
+        items = [
             f'HTTP/1.1 {code}',
-            f'{BAD_CODES.get(code, "500 INTERNAL_ERROR")}',
-            urn
+            'Server: Simple HTTP server',
+            f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
+            f'Content-Length: {cont_len}',
+            f'Content-Type: {cont_type}',
+            'Connection: close'
         ]
+        return ('\r\n'.join(items)).encode(encoding='utf-8')
         
+    def generate_response(self, code, method, urn):
+        headers = self.get_headers(code, method, urn)
+        
+        if code == 200:
+            if method == 'GET':
+                with open(urn, 'rb') as body_data:
+                    return b'\r\n\r\n'.join([headers, body_data.read()])
+            return headers
+            
+        return b'\r\n\r\n'.join([headers, f'{BAD_CODES.get(code, "500 INTERNAL_ERROR")}:\n\n{urn}'.encode(encoding='utf-8')])
+
         
     def parse_request(self):
         method = urn = ''
@@ -99,12 +98,6 @@ class Response:
             return 404, full_path
 
         return 200, full_path
-
-
-
-
-
-
 
 
 class Server:

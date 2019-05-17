@@ -8,8 +8,6 @@ res = re.search(patt, s)
 print(res)
 
 
-
-
 lst = [
     'HEAD /page.ico HTTP',
     'HEAD /httptest/dir2/page._html/ HTTP',
