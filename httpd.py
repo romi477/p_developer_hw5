@@ -15,10 +15,10 @@ NOT_FOUND = 404
 METHOD_NOT_ALLOWED = 405
 
 ERRORS = {
-    400: '400 BAD_REQUEST',
-    403: '403 FORBIDDEN',
-    404: '404 NOT_FOUND',
-    405: '405 METHOD_NOT_ALLOWED',
+    400: 'BAD_REQUEST',
+    403: 'FORBIDDEN',
+    404: 'NOT_FOUND',
+    405: 'METHOD_NOT_ALLOWED',
 }
 
 
@@ -94,16 +94,16 @@ class Response:
             if method == 'GET':
                 with open(urn, 'rb') as body:
                     return b'\r\n\r\n'.join([headers, body.read()])
-            return headers
+            return headers + b'\r\n\r\n'
             
-        return b'\r\n\r\n'.join([headers, f'{ERRORS.get(code, "500 INTERNAL_ERROR")}:\n\n{urn}\n\nHINT: {message}'.encode(encoding='utf-8')])
+        return b'\r\n\r\n'.join([headers, f'{code} {ERRORS.get(code, "INTERNAL_ERROR")}:\n\n{urn}\n\nHINT: {message}'.encode(encoding='utf-8')])
 
     def get_headers(self, code, urn):
         cont_len = os.path.getsize(urn) if os.path.exists(urn) else ''
         cont_type = mimetypes.guess_type(urn)[0] if os.path.exists(urn) else ''
 
         items = [
-            f'HTTP/1.1 {code}',
+            f'HTTP/1.1 {code} {ERRORS.get(code, "INTERNAL_ERROR")}',
             f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
             'Server: Simple HTTP server',
             f'Content-Length: {cont_len}',
