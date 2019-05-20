@@ -127,7 +127,7 @@ class Server:
         try:
             self.server_socket.bind((self.host, self.port))
         except Exception as ex:
-            log.error(ex)
+            log.debug(ex)
             log.debug(f'Server socket has not been bound at <{self.host}: {self.port}>!')
             self.server_socket.close()
         else:
@@ -137,8 +137,10 @@ class Server:
 
     def accept_client(self):
         while True:
-            log.debug('Waiting for client.')
+            log.debug('Waiting for client...')
+
             client_socket, client_addr = self.server_socket.accept()
+        
             log.debug(f'New connection: {client_socket}')
             try:
                 clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
@@ -146,30 +148,24 @@ class Server:
                 log.debug(ex)
                 client_socket.close()
             else:
-                log.debug(f'New process for {client_addr[1]} has been started')
+                log.debug(f'New thread for {client_addr[1]} has been started')
                 clients_handler.start()
-
-        # return self.clients_handler(client_socket, client_addr)
 
     def clients_handler(self, client_socket, client_addr):
 
-        log.debug("Waiting for client's message:")
-        client_query = self.get_request(client_socket)
-        log.debug(f'Message from {client_addr[1]}:\n{client_query}')
-
-        # client_socket.send('Server got it!\n'.encode(encoding='utf-8'))
-        # client_socket.close()
-
+        log.debug("Waiting for client's message...")
+        client_query = self.get_client_data(client_socket)
+        log.debug(f'Message from {client_addr[1]}: {client_query}')
         response = Response(client_query, self.root)
         data = response.execute()
 
         client_socket.send(data)
         client_socket.close()
-        # log.debug(f'Client socket {client_addr[1]} has been closed')
-        # log.debug('----------')
+        log.debug(f'Client socket {client_addr[1]} has been closed')
+        log.debug('-------------------------------')
 
     @staticmethod
-    def get_request(client_socket):
+    def get_client_data(client_socket):
         buff = 1024
         data = b''
         while True:
@@ -204,7 +200,7 @@ def start_server(*args):
     try:
         server = Server(*args)
         server.run()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as ex:
         log.debug('Server has been interrupted.')
 
 
@@ -214,7 +210,11 @@ if __name__ == '__main__':
 
     for _ in range(args.workers):
         worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.root))
+
         worker.start()
+
+        log.debug(f'New worker has been started, pid: {worker.pid}')
+        
 
 
 
