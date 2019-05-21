@@ -2,4 +2,6 @@
 venv/
 __pycache__/
 httpd2.py
-
+draft.py
+draft2.py
+results.txt

@@ -1,6 +1,5 @@
 import re
 import socket
-# import httplib
 from http import client
 import unittest
 
@@ -106,16 +105,16 @@ class HttpServer(unittest.TestCase):
         self.assertEqual(len(data), 38)
         self.assertEqual(data, "<html><body>Page Sample</body></html>\n")
 
-    # def test_large_file(self):
-    #     """large file downloaded correctly"""
-    #     self.conn.request("GET", "/httptest/wikipedia_russia.html")
-    #     r = self.conn.getresponse()
-    #     data = r.read().decode(encoding='utf-8')
-    #     length = r.getheader("Content-Length")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 954824)
-    #     self.assertEqual(len(data), 954824)
-    #     self.assertIn("Wikimedia Foundation, Inc.", data)
+    def test_large_file(self):
+        """large file downloaded correctly"""
+        self.conn.request("GET", "/httptest/wikipedia_russia.html")
+        r = self.conn.getresponse()
+        data = r.read().decode(encoding='utf-8')
+        length = r.getheader("Content-Length")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 954824)
+        # self.assertEqual(len(data), 954824)
+        self.assertIn("Wikimedia Foundation, Inc.", data)
 
     def test_document_root_escaping(self):
         """document root escaping forbidden"""
@@ -172,101 +171,101 @@ class HttpServer(unittest.TestCase):
         else:
             self.assertIn(int(code), (400, 405))
 
-    # def test_filetype_html(self):
-    #     """Content-Type for .html"""
-    #     self.conn.request("GET", "/httptest/dir2/page.html")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 38)
-    #     self.assertEqual(len(data), 38)
-    #     self.assertEqual(ctype, "text/html")
-    #
-    # def test_filetype_css(self):
-    #     """Content-Type for .css"""
-    #     self.conn.request("GET", "/httptest/splash.css")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 98620)
-    #     self.assertEqual(len(data), 98620)
-    #     self.assertEqual(ctype, "text/css")
-    #
-    # def test_filetype_js(self):
-    #     """Content-Type for .js"""
-    #     self.conn.request("GET", "/httptest/jquery-1.9.1.js")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 268381)
-    #     self.assertEqual(len(data), 268381)
-    #     self.assertIn(ctype, ("application/x-javascript", "application/javascript", "text/javascript"))
-    #
-    # def test_filetype_jpg(self):
-    #     """Content-Type for .jpg"""
-    #     self.conn.request("GET", "/httptest/160313.jpg")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 267037)
-    #     self.assertEqual(len(data), 267037)
-    #     self.assertEqual(ctype, "image/jpeg")
-    #
-    # def test_filetype_jpeg(self):
-    #     """Content-Type for .jpeg"""
-    #     self.conn.request("GET", "/httptest/ef35c.jpeg")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 160462)
-    #     self.assertEqual(len(data), 160462)
-    #     self.assertEqual(ctype, "image/jpeg")
-    #
-    # def test_filetype_png(self):
-    #     """Content-Type for .png"""
-    #     self.conn.request("GET", "/httptest/logo.v2.png")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 1754)
-    #     self.assertEqual(len(data), 1754)
-    #     self.assertEqual(ctype, "image/png")
-    #
-    # def test_filetype_gif(self):
-    #     """Content-Type for .gif"""
-    #     self.conn.request("GET", "/httptest/pic_ask.gif")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 1747)
-    #     self.assertEqual(len(data), 1747)
-    #     self.assertEqual(ctype, "image/gif")
-    #
-    # def test_filetype_swf(self):
-    #     """Content-Type for .swf"""
-    #     self.conn.request("GET", "/httptest/b16261023.swf")
-    #     r = self.conn.getresponse()
-    #     data = r.read()
-    #     length = r.getheader("Content-Length")
-    #     ctype = r.getheader("Content-Type")
-    #     self.assertEqual(int(r.status), 200)
-    #     self.assertEqual(int(length), 35344)
-    #     self.assertEqual(len(data), 35344)
-    #     self.assertEqual(ctype, "application/x-shockwave-flash")
+    def test_filetype_html(self):
+        """Content-Type for .html"""
+        self.conn.request("GET", "/httptest/dir2/page.html")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 38)
+        self.assertEqual(len(data), 38)
+        self.assertEqual(ctype, "text/html")
+
+    def test_filetype_css(self):
+        """Content-Type for .css"""
+        self.conn.request("GET", "/httptest/splash.css")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 98620)
+        self.assertEqual(len(data), 98620)
+        self.assertEqual(ctype, "text/css")
+
+    def test_filetype_js(self):
+        """Content-Type for .js"""
+        self.conn.request("GET", "/httptest/jquery-1.9.1.js")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 268381)
+        self.assertEqual(len(data), 268381)
+        self.assertIn(ctype, ("application/x-javascript", "application/javascript", "text/javascript"))
+
+    def test_filetype_jpg(self):
+        """Content-Type for .jpg"""
+        self.conn.request("GET", "/httptest/160313.jpg")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 267037)
+        self.assertEqual(len(data), 267037)
+        self.assertEqual(ctype, "image/jpeg")
+
+    def test_filetype_jpeg(self):
+        """Content-Type for .jpeg"""
+        self.conn.request("GET", "/httptest/ef35c.jpeg")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 160462)
+        self.assertEqual(len(data), 160462)
+        self.assertEqual(ctype, "image/jpeg")
+
+    def test_filetype_png(self):
+        """Content-Type for .png"""
+        self.conn.request("GET", "/httptest/logo.v2.png")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 1754)
+        self.assertEqual(len(data), 1754)
+        self.assertEqual(ctype, "image/png")
+
+    def test_filetype_gif(self):
+        """Content-Type for .gif"""
+        self.conn.request("GET", "/httptest/pic_ask.gif")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 1747)
+        self.assertEqual(len(data), 1747)
+        self.assertEqual(ctype, "image/gif")
+
+    def test_filetype_swf(self):
+        """Content-Type for .swf"""
+        self.conn.request("GET", "/httptest/b16261023.swf")
+        r = self.conn.getresponse()
+        data = r.read()
+        length = r.getheader("Content-Length")
+        ctype = r.getheader("Content-Type")
+        self.assertEqual(int(r.status), 200)
+        self.assertEqual(int(length), 35344)
+        self.assertEqual(len(data), 35344)
+        self.assertEqual(ctype, "application/x-shockwave-flash")
 
 
 

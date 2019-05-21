@@ -7,12 +7,7 @@ import threading
 import logging as log
 import multiprocessing
 from datetime import datetime
-
-OK = 200
-BAD_REQUEST = 400
-FORBIDDEN = 403
-NOT_FOUND = 404
-METHOD_NOT_ALLOWED = 405
+from urllib.parse import unquote
 
 ERRORS = {
     400: 'BAD_REQUEST',
@@ -39,7 +34,7 @@ class Response:
         return data
 
     def parse_request(self):
-        log.debug('request: ', self.request )
+        log.debug(f'Clients request: {self.request}')
         method = urn = message = ''
         patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.\w+)?)(?P<params>[^\.\s/]*) HTTP'
         match = re.match(patt, self.request)
@@ -51,7 +46,7 @@ class Response:
             code, urn, message = self.get_response_data(query_dict)
         else:
             log.debug('Bad request! No matching!')
-            code = BAD_REQUEST
+            code = 400
         return code, method, urn, message
 
     def get_response_data(self, query):
@@ -59,34 +54,39 @@ class Response:
             self.pre_validation(query)
         except Exception as ex:
             log.debug(ex)
-            return BAD_REQUEST, '; '.join([f'{k}: {v}' for k, v in query.items()]), ex
+            return 400, '; '.join([f'{k}: {v}' for k, v in query.items()]), ex
 
         file = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html')
 
         if query['method'] not in self.methods:
-            return METHOD_NOT_ALLOWED, file, f'method {query["method"]} not allowed'
+            return 405, file, f'method {query["method"]} not allowed'
 
-        ext = query['file'].split('.')[-1]
+        ext = query['file'].split('.')[-1].lower()
         if ext not in self.exts:
-            return FORBIDDEN, file, f'<*.{ext}> files not allowed for displaying'
+            return 403, file, f'<*.{ext}> files not allowed for displaying'
 
         if '../' in query['dir']:
-            return FORBIDDEN, file, '<../> document root escaping forbidden'
+            return 403, file, '<../> document root escaping forbidden'
 
         if '.' in query['dir']:
-            return NOT_FOUND, file, f'invalid directory name <{query["dir"]}>, dots in the directory path are not allowed'
+            return 404, file, f'invalid directory name <{query["dir"]}>, dots in the directory path are not allowed'
 
         if not os.path.exists(file):
-            return NOT_FOUND, file, 'make sure exactly that file is required'
+            return 404, file, 'make sure exactly that file is required'
 
-        return OK, file, 'everything is ok'
+        return 200, file, 'everything is ok'
 
     @staticmethod
     def pre_validation(query):
         if query['params'] and not query['params'].startswith('?') and '%' not in query['params']:
             raise ValueError(f'at least query arguments <{query["params"]}> have some mistakes')
-        query['file'] = re.sub(r'%\d\d', ' ', query['file'])
+        
+        if '%' in query['file']:
+            query['file'] = unquote(query['file'])
 
+        if '%' in query['params']:
+            query['file'] = unquote(query['params'])
+        
     def generate_response(self, code, method, urn, message):
         headers = self.get_headers(code, urn)
         
@@ -128,19 +128,17 @@ class Server:
             self.server_socket.bind((self.host, self.port))
         except Exception as ex:
             log.debug(ex)
-            log.debug(f'Server socket has not been bound at <{self.host}: {self.port}>!')
+            log.error(f'Server socket has not been bound at <{self.host}: {self.port}>!')
             self.server_socket.close()
         else:
             self.server_socket.listen(5)
-            log.debug(f'Server has been started on <{self.host}: {self.port}>.')
+            log.info(f'Server has been started on <{self.host}: {self.port}>.')
             self.accept_client()
 
     def accept_client(self):
         while True:
             log.debug('Waiting for client...')
-
             client_socket, client_addr = self.server_socket.accept()
-        
             log.debug(f'New connection: {client_socket}')
             try:
                 clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
@@ -148,21 +146,18 @@ class Server:
                 log.debug(ex)
                 client_socket.close()
             else:
-                log.debug(f'New thread for {client_addr[1]} has been started')
                 clients_handler.start()
+                log.debug(f'New thread for {client_addr[1]} has been started')
 
     def clients_handler(self, client_socket, client_addr):
-
         log.debug("Waiting for client's message...")
         client_query = self.get_client_data(client_socket)
         log.debug(f'Message from {client_addr[1]}: {client_query}')
         response = Response(client_query, self.root)
         data = response.execute()
-
         client_socket.send(data)
         client_socket.close()
         log.debug(f'Client socket {client_addr[1]} has been closed')
-        log.debug('-------------------------------')
 
     @staticmethod
     def get_client_data(client_socket):
@@ -181,9 +176,9 @@ def parse_args():
 
     parser.add_argument('-m', '--master', type=str, default='localhost', help='Hostname, default - localhost.')
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
-    parser.add_argument('-w', '--workers', type=int, default=1, help='Server workers, default - 1.')
+    parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
-    parser.add_argument('-l', '--level', type=str, default='DEBUG', help='Logging level, default - DEBUG.')
+    parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 
     return parser.parse_args()
 
@@ -201,7 +196,7 @@ def start_server(*args):
         server = Server(*args)
         server.run()
     except KeyboardInterrupt as ex:
-        log.debug('Server has been interrupted.')
+        log.error('Server has been interrupted.')
 
 
 if __name__ == '__main__':
@@ -210,10 +205,7 @@ if __name__ == '__main__':
 
     for _ in range(args.workers):
         worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.root))
-
         worker.start()
-
-        log.debug(f'New worker has been started, pid: {worker.pid}')
         
 
 
