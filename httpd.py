@@ -114,9 +114,10 @@ class Response:
 
 
 class Server:
-    def __init__(self, host, port, rootdir):
+    def __init__(self, host, port, queue, rootdir):
         self.host = host
         self.port = port
+        self.queue = queue
         self.root = rootdir
 
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -131,15 +132,18 @@ class Server:
             log.error(f'Server socket has not been bound at <{self.host}: {self.port}>!')
             self.server_socket.close()
         else:
-            self.server_socket.listen(5)
+            self.server_socket.listen(self.queue)
             log.info(f'Server has been started on <{self.host}: {self.port}>.')
-            self.accept_client()
+            self.serve_forever()
 
-    def accept_client(self):
+    def serve_forever(self):
+        count = 0
         while True:
+            count += 1
             log.debug('Waiting for client...')
             client_socket, client_addr = self.server_socket.accept()
             log.debug(f'New connection: {client_socket}')
+
             try:
                 clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
             except Exception as ex:
@@ -148,6 +152,11 @@ class Server:
             else:
                 clients_handler.start()
                 log.debug(f'New thread for {client_addr[1]} has been started')
+
+                if count == 101:
+                    clients_handler.join()
+                    count -= 1
+
 
     def clients_handler(self, client_socket, client_addr):
         log.debug("Waiting for client's message...")
@@ -177,6 +186,7 @@ def parse_args():
     parser.add_argument('-m', '--master', type=str, default='localhost', help='Hostname, default - localhost.')
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
     parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
+    parser.add_argument('-q', '--queue', type=int, default=5, help='Socket listen queue, default - 5.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
     parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 
@@ -204,7 +214,7 @@ if __name__ == '__main__':
     set_logging(args.level)
 
     for _ in range(args.workers):
-        worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.root))
+        worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.queue, args.root))
         worker.start()
         
 
