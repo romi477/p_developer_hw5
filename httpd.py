@@ -7,6 +7,7 @@ import threading
 import logging as log
 import multiprocessing
 from datetime import datetime
+from queue import Queue, Empty
 from urllib.parse import unquote
 
 ERRORS = {
@@ -114,10 +115,11 @@ class Response:
 
 
 class Server:
-    def __init__(self, host, port, queue, rootdir):
+    def __init__(self, host, port, queue, threads, rootdir):
         self.host = host
         self.port = port
         self.queue = queue
+        self.threads = threads
         self.root = rootdir
 
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -136,28 +138,38 @@ class Server:
             log.info(f'Server has been started on <{self.host}: {self.port}>.')
             self.serve_forever()
 
-    def serve_forever(self):
-        count = 0
-        while True:
-            count += 1
-            log.debug('Waiting for client...')
-            client_socket, client_addr = self.server_socket.accept()
-            log.debug(f'New connection: {client_socket}')
 
-            try:
-                clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
-            except Exception as ex:
-                log.debug(ex)
-                client_socket.close()
-            else:
+    def serve_forever(self):
+        threads_pool = Queue()
+        threads = []
+        
+        while True:
+            del threads[:]
+            for i in range(1, self.threads):
+                threads_pool.put(i)
+            log.debug('New pool for threads has been created')
+            
+            while True:
+                log.debug('Waiting for client...')
+                client_socket, client_addr = self.server_socket.accept()
+                log.debug(f'New connection: {client_socket}')
+                try:
+                    clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
+                except Exception as ex:
+                    log.debug(ex)
+                    client_socket.close()
+                    continue
                 clients_handler.start()
                 log.debug(f'New thread for {client_addr[1]} has been started')
-
-                if count == 101:
-                    clients_handler.join()
-                    count -= 1
-
-
+                threads.append(clients_handler)
+                try:
+                    threads_pool.get_nowait()
+                except Empty:
+                    log.debug('Queue of threads reached the limit')
+                    for thread in threads:
+                        thread.join()
+                    break
+                    
     def clients_handler(self, client_socket, client_addr):
         log.debug("Waiting for client's message...")
         client_query = self.get_client_data(client_socket)
@@ -170,7 +182,7 @@ class Server:
 
     @staticmethod
     def get_client_data(client_socket):
-        buff = 1024
+        buff = 8192
         data = b''
         while True:
             chunk = client_socket.recv(buff)
@@ -187,6 +199,7 @@ def parse_args():
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
     parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
     parser.add_argument('-q', '--queue', type=int, default=5, help='Socket listen queue, default - 5.')
+    parser.add_argument('-t', '--threads', type=int, default=10, help='Number of threads per server-worker, default - 10.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
     parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 
@@ -214,7 +227,7 @@ if __name__ == '__main__':
     set_logging(args.level)
 
     for _ in range(args.workers):
-        worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.queue, args.root))
+        worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.queue, args.threads, args.root))
         worker.start()
         
 
