@@ -113,7 +113,7 @@ class HttpServer(unittest.TestCase):
         length = r.getheader("Content-Length")
         self.assertEqual(int(r.status), 200)
         self.assertEqual(int(length), 954824)
-        # self.assertEqual(len(data), 954824)
+        self.assertEqual(len(data), 954824)
         self.assertIn("Wikimedia Foundation, Inc.", data)
 
     def test_document_root_escaping(self):
@@ -157,12 +157,12 @@ class HttpServer(unittest.TestCase):
 
         self.assertTrue(data.find("\r\n\r\n") > 0, "no empty line with CRLF found")
         (head, body) = re.split("\r\n\r\n", data, 1);
-        headers = head.split("\r\n");
+        headers = head.split("\r\n")
         self.assertTrue(len(headers) > 0, "no headers found")
         statusline = headers.pop(0)
         (proto, code, status) = statusline.split(" ");
         h = {}
-        for k,v in enumerate(headers):
+        for k, v in enumerate(headers):
             (name, value) = re.split('\s*:\s*', v, 1)
             h[name] = value
         if (int(code) == 200):

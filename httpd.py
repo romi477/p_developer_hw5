@@ -19,75 +19,54 @@ ERRORS = {
 
 
 class Response:
-    def __init__(self, request, root):
-        self.request = request
+    def __init__(self, query, root):
+        self.query = query
         self.root = root
-        
         self.methods = ['GET', 'HEAD']
-        self.exts = ['', 'txt', 'html', 'css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'swf']
+        self.exts = ['', 'txt', 'html', 'css', 'js', 'jpg', 'png', 'jpeg', 'gif', 'swf']
 
     def execute(self):
-        code, method, urn, message = self.parse_request()
-        log.debug(f'Cleaned params: {code}; {method}; {urn}')
-
-        data = self.generate_response(code, method, urn, message)
-        
+        request_params = self.evaluate_request()
+        # log.debug(f'Request params: {request_params}')
+        # log.info('SIZE:', os.path.getsize(request_params[-2]))
+        data = self.generate_response(*request_params)
         return data
 
-    def parse_request(self):
-        log.debug(f'Clients request: {self.request}')
+    def evaluate_request(self):
         method = urn = message = ''
-        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>(\S+\.\w+)?)(?P<params>[^\.\s/]*) HTTP'
-        match = re.match(patt, self.request)
-
-        if match:
-            query_dict = match.groupdict()
-            log.debug(f'Request params: {query_dict}')
-            method = query_dict['method']
-            code, urn, message = self.get_response_data(query_dict)
+        if self.query:
+            method = self.query['method']
+            code, urn, message = self.get_response_data()
         else:
-            log.debug('Bad request! No matching!')
             code = 400
+            log.debug('Bad request!')
         return code, method, urn, message
 
-    def get_response_data(self, query):
-        try:
-            self.pre_validation(query)
-        except Exception as ex:
-            log.debug(ex)
-            return 400, '; '.join([f'{k}: {v}' for k, v in query.items()]), ex
+    def get_response_data(self):
+        items = '; '.join([f'{k}: {v}' for k, v in self.query.items()])
+        if self.query['addition'] and not self.query['addition'].startswith('?'):
+            return 400, items, f'at least query argument "{self.query["addition"]}" have some mistakes'
 
-        file = os.path.abspath('.') + '/' + self.root + query['dir'] + (query['file'] or 'index.html')
+        file = os.path.join(os.path.abspath('.'), self.root + self.query['dir'] + (self.query['file'] or 'index.html'))
 
-        if query['method'] not in self.methods:
-            return 405, file, f'method {query["method"]} not allowed'
+        if self.query['method'] not in self.methods:
+            return 405, file, f'method {self.query["method"]} not allowed'
 
-        ext = query['file'].split('.')[-1].lower()
+        ext = self.query['file'].split('.')[-1].lower()
         if ext not in self.exts:
-            return 403, file, f'<*.{ext}> files not allowed for displaying'
+            return 403, file, f'"*.{ext}" files not allowed for displaying'
 
-        if '../' in query['dir']:
-            return 403, file, '<../> document root escaping forbidden'
+        if '../' in self.query['dir']:
+            return 403, file, '"../" document root escaping forbidden'
 
-        if '.' in query['dir']:
-            return 404, file, f'invalid directory name <{query["dir"]}>, dots in the directory path are not allowed'
+        if '.' in self.query['dir']:
+            return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
 
         if not os.path.exists(file):
             return 404, file, 'make sure exactly that file is required'
 
         return 200, file, 'everything is ok'
 
-    @staticmethod
-    def pre_validation(query):
-        if query['params'] and not query['params'].startswith('?') and '%' not in query['params']:
-            raise ValueError(f'at least query arguments <{query["params"]}> have some mistakes')
-        
-        if '%' in query['file']:
-            query['file'] = unquote(query['file'])
-
-        if '%' in query['params']:
-            query['file'] = unquote(query['params'])
-        
     def generate_response(self, code, method, urn, message):
         headers = self.get_headers(code, urn)
         
@@ -96,10 +75,10 @@ class Response:
                 with open(urn, 'rb') as body:
                     return b'\r\n\r\n'.join([headers, body.read()])
             return headers + b'\r\n\r\n'
-            
-        return b'\r\n\r\n'.join([headers, f'{code} {ERRORS.get(code, "INTERNAL_ERROR")}:\n\n{urn}\n\nHINT: {message}'.encode(encoding='utf-8')])
+        return b'\r\n\r\n'.join([headers, f'{code} {ERRORS.get(code, "INTERNAL_ERROR")}:\n\n{urn}\n\nHINT: {message}'.encode('utf-8')])
 
-    def get_headers(self, code, urn):
+    @staticmethod
+    def get_headers(code, urn):
         cont_len = os.path.getsize(urn) if os.path.exists(urn) else ''
         cont_type = mimetypes.guess_type(urn)[0] if os.path.exists(urn) else ''
 
@@ -111,7 +90,7 @@ class Response:
             f'Content-Type: {cont_type}',
             'Connection: close'
         ]
-        return ('\r\n'.join(items)).encode(encoding='utf-8')
+        return ('\r\n'.join(items)).encode('utf-8')
 
 
 class Server:
@@ -120,7 +99,7 @@ class Server:
         self.port = port
         self.queue = queue
         self.threads = threads
-        self.root = rootdir
+        self.rootdir = rootdir
 
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -140,19 +119,19 @@ class Server:
 
 
     def serve_forever(self):
-        threads_pool = Queue()
+        permissions_pool = Queue()
         threads = []
         
         while True:
             del threads[:]
-            for i in range(1, self.threads):
-                threads_pool.put(i)
-            log.debug('New pool for threads has been created')
+            for i in range(self.threads):
+                permissions_pool.put(i)
+            # log.debug('New pool of permissions has been created')
             
             while True:
-                log.debug('Waiting for client...')
+                # log.debug('Waiting for client...')
                 client_socket, client_addr = self.server_socket.accept()
-                log.debug(f'New connection: {client_socket}')
+                # log.debug(f'New connection: {client_socket}')
                 try:
                     clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
                 except Exception as ex:
@@ -160,25 +139,31 @@ class Server:
                     client_socket.close()
                     continue
                 clients_handler.start()
-                log.debug(f'New thread for {client_addr[1]} has been started')
+                # log.debug(f'New thread for {client_addr[1]} has been started')
                 threads.append(clients_handler)
                 try:
-                    threads_pool.get_nowait()
+                    permissions_pool.get_nowait()
                 except Empty:
-                    log.debug('Queue of threads reached the limit')
+                    # log.debug('Number of threads has reached the limit')
                     for thread in threads:
                         thread.join()
                     break
                     
     def clients_handler(self, client_socket, client_addr):
-        log.debug("Waiting for client's message...")
+        # log.debug("Waiting for client's message...")
         client_query = self.get_client_data(client_socket)
-        log.debug(f'Message from {client_addr[1]}: {client_query}')
-        response = Response(client_query, self.root)
+        # log.debug(len(client_query))
+        # log.debug(f'Message from {client_addr[1]}: {client_query}')
+
+        query_dict = self.parse_request(client_query)
+        # log.debug(f'Parsed params: {query_dict.items()}')
+
+        response = Response(query_dict, self.rootdir)
         data = response.execute()
-        client_socket.send(data)
+        client_socket.sendall(data)
         client_socket.close()
-        log.debug(f'Client socket {client_addr[1]} has been closed')
+        # log.debug(f'Client socket {client_addr[1]} has been closed')
+
 
     @staticmethod
     def get_client_data(client_socket):
@@ -189,7 +174,16 @@ class Server:
             data += chunk
             if len(chunk) < buff:
                 break
-        return data.decode(encoding='utf-8')
+        return data.decode('utf-8')
+
+
+    def parse_request(self, request):
+        # log.debug(f'Clients request: {request}')
+        patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>([\w\s\.\-]+\.\w+)?)(?P<addition>[^\s\/]*) HTTP'
+        match = re.match(patt, unquote(request))
+        if match:
+            return match.groupdict()
+        return {}
 
 
 def parse_args():
@@ -208,6 +202,8 @@ def parse_args():
 
 def set_logging(level):
     log.basicConfig(
+        # filename='LOG.log',
+        # filemode='w',
         level=level,
         format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%Y.%m.%d %H:%M:%S',
