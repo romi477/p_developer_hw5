@@ -1,6 +1,6 @@
 ## OTUServer
 Простой синхронный prefork-http сервер. Реализация GET, HEAD методов.
-При запуске мастер-сервера создаются потомки в виде новых процессов. Потомок, получивший клиентское соединение,d
+При запуске мастер-сервера создаются потомки в виде новых процессов. Потомок, получивший клиентское соединение,
 создайт новый поток.
 
 
@@ -14,7 +14,7 @@
 * --root, -r :  корневая директория для доступа к файлам, ./rootdir
 * --workers, -w :  колическтво воркеров (потомков мастер-сервера), 5
 * --queue, -q : очередь подключений к серверному сокету, 4
-* --threads, -t : лимит потоков обработки запроса на один процесс мастер-сервера, 10
+* --threads, -t : лимит потоков обработки соединений на один процесс (на один воркер), 20
 * --log, -l :  уровень логирования, INFO
 
 #### Запуск базовых тестов:
@@ -50,31 +50,31 @@
     Document Length:        34 bytes
     
     Concurrency Level:      100
-    Time taken for tests:   9.799 seconds
+    Time taken for tests:   11.695 seconds
     Complete requests:      50000
     Failed requests:        0
     Total transferred:      9050000 bytes
     HTML transferred:       1700000 bytes
-    Requests per second:    5102.77 [#/sec] (mean)
-    Time per request:       19.597 [ms] (mean)
-    Time per request:       0.196 [ms] (mean, across all concurrent requests)
-    Transfer rate:          901.96 [Kbytes/sec] received
+    Requests per second:    4275.34 [#/sec] (mean)
+    Time per request:       23.390 [ms] (mean)
+    Time per request:       0.234 [ms] (mean, across all concurrent requests)
+    Transfer rate:          755.70 [Kbytes/sec] received
     
     Connection Times (ms)
                   min  mean[+/-sd] median   max
-    Connect:        0   15 131.8      0    3037
-    Processing:     0    3  12.2      3     835
-    Waiting:        0    3  12.2      2     835
-    Total:          0   18 136.0      3    3447
+    Connect:        0   19 151.9      0    3050
+    Processing:     0    4  15.3      3     837
+    Waiting:        0    4  15.3      2     837
+    Total:          0   22 157.3      3    3436
     
     Percentage of the requests served within a certain time (ms)
       50%      3
-      66%      3
+      66%      4
       75%      4
-      80%      4
+      80%      5
       90%      6
       95%      7
-      98%      9
-      99%   1016
-     100%   3447 (longest request)
-
+      98%     11
+      99%   1020
+     100%   3436 (longest request)
+    

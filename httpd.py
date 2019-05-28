@@ -27,8 +27,7 @@ class Response:
 
     def execute(self):
         request_params = self.evaluate_request()
-        # log.debug(f'Request params: {request_params}')
-        # log.info('SIZE:', os.path.getsize(request_params[-2]))
+        log.debug(f'Request params: {request_params}')
         data = self.generate_response(*request_params)
         return data
 
@@ -94,6 +93,7 @@ class Response:
 
 
 class Server:
+    
     def __init__(self, host, port, queue, threads, rootdir):
         self.host = host
         self.port = port
@@ -117,7 +117,6 @@ class Server:
             log.info(f'Server has been started on <{self.host}: {self.port}>.')
             self.serve_forever()
 
-
     def serve_forever(self):
         permissions_pool = Queue()
         threads = []
@@ -126,12 +125,12 @@ class Server:
             del threads[:]
             for i in range(self.threads):
                 permissions_pool.put(i)
-            # log.debug('New pool of permissions has been created')
+            log.debug('New pool of permissions has been created')
             
             while True:
-                # log.debug('Waiting for client...')
+                log.debug('Waiting for client...')
                 client_socket, client_addr = self.server_socket.accept()
-                # log.debug(f'New connection: {client_socket}')
+                log.debug(f'New connection: {client_socket}')
                 try:
                     clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
                 except Exception as ex:
@@ -139,30 +138,29 @@ class Server:
                     client_socket.close()
                     continue
                 clients_handler.start()
-                # log.debug(f'New thread for {client_addr[1]} has been started')
+                log.debug(f'New thread for {client_addr[1]} has been started')
                 threads.append(clients_handler)
                 try:
                     permissions_pool.get_nowait()
                 except Empty:
-                    # log.debug('Number of threads has reached the limit')
+                    log.debug('Number of threads has reached the limit')
                     for thread in threads:
                         thread.join()
                     break
                     
     def clients_handler(self, client_socket, client_addr):
-        # log.debug("Waiting for client's message...")
+        log.debug("Waiting for client's message...")
         client_query = self.get_client_data(client_socket)
-        # log.debug(len(client_query))
-        # log.debug(f'Message from {client_addr[1]}: {client_query}')
+        log.debug(f'Message from {client_addr[1]}: {client_query}')
 
         query_dict = self.parse_request(client_query)
-        # log.debug(f'Parsed params: {query_dict.items()}')
+        log.debug(f'Parsed params: {query_dict.items()}')
 
         response = Response(query_dict, self.rootdir)
         data = response.execute()
         client_socket.sendall(data)
         client_socket.close()
-        # log.debug(f'Client socket {client_addr[1]} has been closed')
+        log.debug(f'Client socket {client_addr[1]} has been closed')
 
 
     @staticmethod
@@ -178,12 +176,9 @@ class Server:
 
 
     def parse_request(self, request):
-        # log.debug(f'Clients request: {request}')
         patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>([\w\s\.\-]+\.\w+)?)(?P<addition>[^\s\/]*) HTTP'
         match = re.match(patt, unquote(request))
-        if match:
-            return match.groupdict()
-        return {}
+        return match.groupdict() if match else {}
 
 
 def parse_args():
@@ -192,8 +187,8 @@ def parse_args():
     parser.add_argument('-m', '--master', type=str, default='localhost', help='Hostname, default - localhost.')
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
     parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
-    parser.add_argument('-q', '--queue', type=int, default=5, help='Socket listen queue, default - 5.')
-    parser.add_argument('-t', '--threads', type=int, default=10, help='Number of threads per server-worker, default - 10.')
+    parser.add_argument('-q', '--queue', type=int, default=4, help='Socket listen queue, default - 4.')
+    parser.add_argument('-t', '--threads', type=int, default=20, help='Number of threads per server-worker, default - 20.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
     parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 
@@ -202,8 +197,6 @@ def parse_args():
 
 def set_logging(level):
     log.basicConfig(
-        # filename='LOG.log',
-        # filemode='w',
         level=level,
         format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%Y.%m.%d %H:%M:%S',
@@ -214,7 +207,7 @@ def start_server(*args):
     try:
         server = Server(*args)
         server.run()
-    except KeyboardInterrupt as ex:
+    except KeyboardInterrupt:
         log.error('Server has been interrupted.')
 
 
@@ -223,7 +216,16 @@ if __name__ == '__main__':
     set_logging(args.level)
 
     for _ in range(args.workers):
-        worker = multiprocessing.Process(target=start_server, args=(args.master, args.port, args.queue, args.threads, args.root))
+        worker = multiprocessing.Process(
+            target=start_server,
+            args=(
+                args.master,
+                args.port,
+                args.queue,
+                args.threads,
+                args.root
+            )
+        )
         worker.start()
         
 
