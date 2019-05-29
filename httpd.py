@@ -9,6 +9,7 @@ import multiprocessing
 from datetime import datetime
 from queue import Queue, Empty
 from urllib.parse import unquote
+from multiprocessing.dummy import Pool
 
 ERRORS = {
     400: 'BAD_REQUEST',
@@ -58,8 +59,8 @@ class Response:
         if '../' in self.query['dir']:
             return 403, file, '"../" document root escaping forbidden'
 
-        if '.' in self.query['dir']:
-            return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
+        # if '.' in self.query['dir']:
+        #     return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
 
         if not os.path.exists(file):
             return 404, file, 'make sure exactly that file is required'
@@ -117,38 +118,26 @@ class Server:
             log.info(f'Server has been started on <{self.host}: {self.port}>.')
             self.serve_forever()
 
+
+
     def serve_forever(self):
-        permissions_pool = Queue()
-        threads = []
-        
+        pool = Pool(self.threads)
+        threads_queue = Queue()
+
         while True:
-            del threads[:]
-            for i in range(self.threads):
-                permissions_pool.put(i)
-            log.debug('New pool of permissions has been created')
-            
-            while True:
-                log.debug('Waiting for client...')
-                client_socket, client_addr = self.server_socket.accept()
-                log.debug(f'New connection: {client_socket}')
-                try:
-                    clients_handler = threading.Thread(target=self.clients_handler, args=(client_socket, client_addr))
-                except Exception as ex:
-                    log.debug(ex)
-                    client_socket.close()
-                    continue
-                clients_handler.start()
-                log.debug(f'New thread for {client_addr[1]} has been started')
-                threads.append(clients_handler)
-                try:
-                    permissions_pool.get_nowait()
-                except Empty:
-                    log.debug('Number of threads has reached the limit')
-                    for thread in threads:
-                        thread.join()
-                    break
-                    
-    def clients_handler(self, client_socket, client_addr):
+            log.debug('Waiting for client...')
+            client_socket, client_addr = self.server_socket.accept()
+            threads_queue.put((client_socket, client_addr))
+            log.debug(f'New connection: {client_socket}')
+
+            pool.map(self.clients_handler, [threads_queue.get()])
+
+
+
+
+    def clients_handler(self, args):
+        client_socket = args[0]
+        client_addr = args[1]
         log.debug("Waiting for client's message...")
         client_query = self.get_client_data(client_socket)
         log.debug(f'Message from {client_addr[1]}: {client_query}')
@@ -158,13 +147,6 @@ class Server:
 
         response = Response(query_dict, self.rootdir)
         data = response.execute()
-        
-        with open('LOG.log', 'w') as file:
-            file.write(data.decode('utf-8'))
-            
-        log.debug('DATA')
-        log.debug(data)
-        log.debug(len(data))
         client_socket.sendall(data)
         client_socket.close()
         log.debug(f'Client socket {client_addr[1]} has been closed')
@@ -190,7 +172,7 @@ def parse_args():
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
     parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
     parser.add_argument('-q', '--queue', type=int, default=4, help='Socket listen queue, default - 4.')
-    parser.add_argument('-t', '--threads', type=int, default=20, help='Number of threads per server-worker, default - 20.')
+    parser.add_argument('-t', '--threads', type=int, default=8, help='Number of threads per server-worker, default - 8.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
     parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 
