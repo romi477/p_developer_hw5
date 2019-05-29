@@ -158,24 +158,26 @@ class Server:
 
         response = Response(query_dict, self.rootdir)
         data = response.execute()
+        
+        with open('LOG.log', 'w') as file:
+            file.write(data.decode('utf-8'))
+            
+        log.debug('DATA')
+        log.debug(data)
+        log.debug(len(data))
         client_socket.sendall(data)
         client_socket.close()
         log.debug(f'Client socket {client_addr[1]} has been closed')
 
-
     @staticmethod
     def get_client_data(client_socket):
-        buff = 8192
         data = b''
-        while True:
-            chunk = client_socket.recv(buff)
-            data += chunk
-            if len(chunk) < buff:
-                break
+        while not data.endswith(b'\n'):
+            data += client_socket.recv(8092)
         return data.decode('utf-8')
 
-
-    def parse_request(self, request):
+    @staticmethod
+    def parse_request(request):
         patt = r'(?P<method>[A-Z]+) (?P<dir>/(\S+/)*)(?P<file>([\w\s\.\-]+\.\w+)?)(?P<addition>[^\s\/]*) HTTP'
         match = re.match(patt, unquote(request))
         return match.groupdict() if match else {}
