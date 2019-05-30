@@ -13,8 +13,8 @@
 * --port, -p :  порт сервера, 8888
 * --root, -r :  корневая директория для доступа к файлам, ./rootdir
 * --workers, -w :  колическтво воркеров (потомков мастер-сервера), 5
-* --queue, -q : очередь подключений к серверному сокету, 4
-* --threads, -t : лимит потоков обработки соединений на один процесс (на один воркер), 20
+* --queue, -q : очередь подключений к серверному сокету, 5
+* --threads, -t : лимит потоков обработки соединений на один процесс (на один воркер), 4
 * --log, -l :  уровень логирования, INFO
 
 #### Запуск базовых тестов:
@@ -50,31 +50,32 @@
     Document Length:        34 bytes
     
     Concurrency Level:      100
-    Time taken for tests:   11.695 seconds
+    Time taken for tests:   11.288 seconds
     Complete requests:      50000
     Failed requests:        0
     Total transferred:      9050000 bytes
     HTML transferred:       1700000 bytes
-    Requests per second:    4275.34 [#/sec] (mean)
-    Time per request:       23.390 [ms] (mean)
-    Time per request:       0.234 [ms] (mean, across all concurrent requests)
-    Transfer rate:          755.70 [Kbytes/sec] received
+    Requests per second:    4429.33 [#/sec] (mean)
+    Time per request:       22.577 [ms] (mean)
+    Time per request:       0.226 [ms] (mean, across all concurrent requests)
+    Transfer rate:          782.92 [Kbytes/sec] received
     
     Connection Times (ms)
                   min  mean[+/-sd] median   max
-    Connect:        0   19 151.9      0    3050
-    Processing:     0    4  15.3      3     837
-    Waiting:        0    4  15.3      2     837
-    Total:          0   22 157.3      3    3436
+    Connect:        0   19 150.2      0    3048
+    Processing:     0    3  13.5      2     834
+    Waiting:        0    3  13.5      2     834
+    Total:          0   22 155.0      2    3454
     
     Percentage of the requests served within a certain time (ms)
-      50%      3
-      66%      4
-      75%      4
-      80%      5
-      90%      6
-      95%      7
-      98%     11
-      99%   1020
-     100%   3436 (longest request)
+      50%      2
+      66%      2
+      75%      3
+      80%      3
+      90%      4
+      95%      5
+      98%     10
+      99%   1019
+     100%   3454 (longest request)
+
     

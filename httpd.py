@@ -59,8 +59,8 @@ class Response:
         if '../' in self.query['dir']:
             return 403, file, '"../" document root escaping forbidden'
 
-        # if '.' in self.query['dir']:
-        #     return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
+        if '.' in self.query['dir']:
+            return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
 
         if not os.path.exists(file):
             return 404, file, 'make sure exactly that file is required'
@@ -118,8 +118,6 @@ class Server:
             log.info(f'Server has been started on <{self.host}: {self.port}>.')
             self.serve_forever()
 
-
-
     def serve_forever(self):
         pool = Pool(self.threads)
         threads_queue = Queue()
@@ -129,15 +127,11 @@ class Server:
             client_socket, client_addr = self.server_socket.accept()
             threads_queue.put((client_socket, client_addr))
             log.debug(f'New connection: {client_socket}')
-
+            
             pool.map(self.clients_handler, [threads_queue.get()])
 
-
-
-
     def clients_handler(self, args):
-        client_socket = args[0]
-        client_addr = args[1]
+        client_socket, client_addr = args
         log.debug("Waiting for client's message...")
         client_query = self.get_client_data(client_socket)
         log.debug(f'Message from {client_addr[1]}: {client_query}')
@@ -171,8 +165,8 @@ def parse_args():
     parser.add_argument('-m', '--master', type=str, default='localhost', help='Hostname, default - localhost.')
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
     parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
-    parser.add_argument('-q', '--queue', type=int, default=4, help='Socket listen queue, default - 4.')
-    parser.add_argument('-t', '--threads', type=int, default=8, help='Number of threads per server-worker, default - 8.')
+    parser.add_argument('-q', '--queue', type=int, default=5, help='Socket listen queue, default - 5.')
+    parser.add_argument('-t', '--threads', type=int, default=4, help='Number of threads per server-worker, default - 4.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
     parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 

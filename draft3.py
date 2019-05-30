@@ -15,11 +15,11 @@ urls = [
     'https://wiki.python.org/moin/LocalUserGroups',
     'http://www.python.org/psf/',
     'http://docs.python.org/devguide/',
-    'http://www.python.org/community/awards/'
     ]
 
-pool = Pool(2)
+pool = Pool(4)
 res = []
+
 def r(url):
     r = requests.get(url)
     print(r)
@@ -27,7 +27,7 @@ def r(url):
 
 for i in pool.map(r, urls):
     res.append(i)
-print('res', res)
+print('done!')
 
 # pool.close()
 # pool.join()
