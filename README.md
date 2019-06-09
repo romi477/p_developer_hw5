@@ -13,8 +13,6 @@
 * --port, -p :  порт сервера, 8888
 * --root, -r :  корневая директория для доступа к файлам, ./rootdir
 * --workers, -w :  колическтво воркеров (потомков мастер-сервера), 5
-* --queue, -q : очередь подключений к серверному сокету, 5
-* --threads, -t : лимит потоков обработки соединений на один процесс (на один воркер), 4
 * --log, -l :  уровень логирования, INFO
 
 #### Запуск базовых тестов:
@@ -50,22 +48,22 @@
     Document Length:        34 bytes
     
     Concurrency Level:      100
-    Time taken for tests:   11.288 seconds
+    Time taken for tests:   9.597 seconds
     Complete requests:      50000
     Failed requests:        0
     Total transferred:      9050000 bytes
     HTML transferred:       1700000 bytes
-    Requests per second:    4429.33 [#/sec] (mean)
-    Time per request:       22.577 [ms] (mean)
-    Time per request:       0.226 [ms] (mean, across all concurrent requests)
-    Transfer rate:          782.92 [Kbytes/sec] received
+    Requests per second:    5210.19 [#/sec] (mean)
+    Time per request:       19.193 [ms] (mean)
+    Time per request:       0.192 [ms] (mean, across all concurrent requests)
+    Transfer rate:          920.94 [Kbytes/sec] received
     
     Connection Times (ms)
                   min  mean[+/-sd] median   max
-    Connect:        0   19 150.2      0    3048
-    Processing:     0    3  13.5      2     834
-    Waiting:        0    3  13.5      2     834
-    Total:          0   22 155.0      2    3454
+    Connect:        0   15 127.3      0    3044
+    Processing:     0    2  13.7      2     834
+    Waiting:        0    2  13.7      2     834
+    Total:          0   18 132.4      2    3447
     
     Percentage of the requests served within a certain time (ms)
       50%      2
@@ -74,8 +72,10 @@
       80%      3
       90%      4
       95%      5
-      98%     10
-      99%   1019
-     100%   3454 (longest request)
+      98%      7
+      99%   1015
+     100%   3447 (longest request)
+
+
 
     

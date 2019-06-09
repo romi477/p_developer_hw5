@@ -3,11 +3,9 @@ import re
 import socket
 import argparse
 import mimetypes
-import threading
 import logging as log
 import multiprocessing
 from datetime import datetime
-from queue import Queue, Empty
 from urllib.parse import unquote
 from multiprocessing.dummy import Pool
 
@@ -95,11 +93,9 @@ class Response:
 
 class Server:
     
-    def __init__(self, host, port, queue, threads, rootdir):
+    def __init__(self, host, port, rootdir):
         self.host = host
         self.port = port
-        self.queue = queue
-        self.threads = threads
         self.rootdir = rootdir
 
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -114,21 +110,18 @@ class Server:
             log.error(f'Server socket has not been bound at <{self.host}: {self.port}>!')
             self.server_socket.close()
         else:
-            self.server_socket.listen(self.queue)
+            self.server_socket.listen(5)
             log.info(f'Server has been started on <{self.host}: {self.port}>.')
             self.serve_forever()
 
     def serve_forever(self):
-        pool = Pool(self.threads)
-        threads_queue = Queue()
+        pool = Pool()
 
         while True:
             log.debug('Waiting for client...')
-            client_socket, client_addr = self.server_socket.accept()
-            threads_queue.put((client_socket, client_addr))
-            log.debug(f'New connection: {client_socket}')
-            
-            pool.map(self.clients_handler, [threads_queue.get()])
+            client = self.server_socket.accept()
+            log.debug(f'New connection: {client[0]}')
+            pool.map(self.clients_handler, [client])
 
     def clients_handler(self, args):
         client_socket, client_addr = args
@@ -147,10 +140,14 @@ class Server:
 
     @staticmethod
     def get_client_data(client_socket):
-        data = b''
-        while not data.endswith(b'\n'):
-            data += client_socket.recv(8092)
-        return data.decode('utf-8')
+        buf = b''
+        lim = 8092
+        while lim:
+            buf += client_socket.recv(lim)
+            lim = lim - len(buf)
+            if b'\r\n\r\n' in buf:
+                break
+        return buf.decode('utf-8')
 
     @staticmethod
     def parse_request(request):
@@ -165,8 +162,6 @@ def parse_args():
     parser.add_argument('-m', '--master', type=str, default='localhost', help='Hostname, default - localhost.')
     parser.add_argument('-p', '--port', type=int, default=8888, help='Port, default - 8888.')
     parser.add_argument('-w', '--workers', type=int, default=5, help='Server workers, default - 5.')
-    parser.add_argument('-q', '--queue', type=int, default=5, help='Socket listen queue, default - 5.')
-    parser.add_argument('-t', '--threads', type=int, default=4, help='Number of threads per server-worker, default - 4.')
     parser.add_argument('-r', '--root', type=str, default='rootdir', help='DOCUMENT_ROOT directory.')
     parser.add_argument('-l', '--level', type=str, default='INFO', help='Logging level, default - INFO.')
 
@@ -199,8 +194,6 @@ if __name__ == '__main__':
             args=(
                 args.master,
                 args.port,
-                args.queue,
-                args.threads,
                 args.root
             )
         )
