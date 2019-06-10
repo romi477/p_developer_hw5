@@ -46,27 +46,29 @@ class Response:
         if self.query['addition'] and not self.query['addition'].startswith('?'):
             return 400, items, f'at least query argument "{self.query["addition"]}" have some mistakes'
 
-        file = os.path.join(os.path.abspath('.'), self.root + self.query['dir'] + (self.query['file'] or 'index.html'))
-        file = os.path.normpath(file)
+        local_path = os.path.join(self.root + self.query['dir'] + (self.query['file'] or 'index.html'))
+        local_path = os.path.normpath(local_path)
         
-        if self.root not in file.split(os.path.sep):
-            return 403, file, '"../" document root escaping forbidden'
+        if self.root not in local_path.split(os.path.sep):
+            return 403, local_path, '"../" document root escaping forbidden'
+
+        global_path = os.path.join(os.path.abspath('.'), local_path)
 
         if self.query['method'] not in self.methods:
-            return 405, file, f'method {self.query["method"]} not allowed'
+            return 405, global_path, f'method {self.query["method"]} not allowed'
 
         ext = self.query['file'].split('.')[-1].lower()
         
         if ext not in self.exts:
-            return 403, file, f'"*.{ext}" files not allowed for displaying'
+            return 403, global_path, f'"*.{ext}" files not allowed for displaying'
 
         if '.' in self.query['dir']:
-            return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
+            return 404, global_path, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
 
-        if not os.path.exists(file):
-            return 404, file, 'make sure exactly that file is required'
+        if not os.path.exists(global_path):
+            return 404, global_path, 'make sure exactly that file is required'
 
-        return 200, file, 'everything is ok'
+        return 200, global_path, 'everything is ok'
 
     def generate_response(self, code, method, urn, message):
         headers = self.get_headers(code, urn)
