@@ -9,6 +9,7 @@ from datetime import datetime
 from urllib.parse import unquote
 from multiprocessing.dummy import Pool
 
+
 ERRORS = {
     400: 'BAD_REQUEST',
     403: 'FORBIDDEN',
@@ -46,16 +47,18 @@ class Response:
             return 400, items, f'at least query argument "{self.query["addition"]}" have some mistakes'
 
         file = os.path.join(os.path.abspath('.'), self.root + self.query['dir'] + (self.query['file'] or 'index.html'))
+        file = os.path.normpath(file)
+        
+        if self.root not in file.split(os.path.sep):
+            return 403, file, '"../" document root escaping forbidden'
 
         if self.query['method'] not in self.methods:
             return 405, file, f'method {self.query["method"]} not allowed'
 
         ext = self.query['file'].split('.')[-1].lower()
+        
         if ext not in self.exts:
             return 403, file, f'"*.{ext}" files not allowed for displaying'
-
-        if '../' in self.query['dir']:
-            return 403, file, '"../" document root escaping forbidden'
 
         if '.' in self.query['dir']:
             return 404, file, f'invalid directory name "{self.query["dir"]}", dots in the directory path are not allowed'
