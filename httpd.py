@@ -49,7 +49,7 @@ class Response:
         local_path = os.path.join(self.root + self.query['dir'] + (self.query['file'] or 'index.html'))
         local_path = os.path.normpath(local_path)
         
-        if self.root not in local_path.split(os.path.sep):
+        if local_path.split(os.path.sep)[0] != self.root:
             return 403, local_path, '"../" document root escaping forbidden'
 
         global_path = os.path.join(os.path.abspath('.'), local_path)
